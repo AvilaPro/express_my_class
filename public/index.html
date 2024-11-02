@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Express</title>
+</head>
+<body>
+    <h1>Iniciar Sesion</h1>
+    <form id="formulario" action="" method="post">
+        <div>
+            <label for="username">
+                username
+            </label>
+            <input type="text" id="username" placeholder="Username...">
+        </div>
+        <div>
+            <label for="password">
+                password
+            </label>
+            <input type="text" id="password" placeholder="password...">
+        </div>
+        <input type="submit" value="Iniciar Sesion">
+    </form>
+
+    <script>
+        let formulario = document.getElementById('formulario');
+        formulario.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            let username = document.getElementById('username').value;
+            let password = document.getElementById('password').value;
+            let datos = { username, password };
+            console.log(datos);
+            try {
+                let response = await fetch('http://localhost:3000/iniciar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(datos)
+                })
+                if (response.ok) {
+                    let textResponse = await response.text();
+                }else {
+                    console.log('Error al enviar los datos');
+                }
+            } catch (error) {
+                console.error('Error del servidor');
+            }
+        })
+    </script>
+</body>
+</html>
