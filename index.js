@@ -3,6 +3,10 @@ const app = express();
 const bodyParser = require('body-parser');
 const path = require('path');
 const cors = require('cors');
+// Requerimos fs de node
+const fs = require('fs').promises;
+// Requerimos helmet
+const helmet = require('helmet');
 
 /**
  * Funciones utilitarias
@@ -18,12 +22,64 @@ function fun2(req, res, next) {
     next();
 }
 
+async function getUserById(id){
+    try {
+        // console.log("entro al getUserById ");
+        const data = await fs.readFile(`./public/users/${id}.json`);
+        // console.log(data);
+        return JSON.parse(data);
+    } catch (error) {
+        throw new Error('Usuario no encontrado');
+    }
+}
+
+function ValidarCredenciales(username, password) {
+    //Nos conectamos a la base de datos y validamos sea autentico
+    // console.log(username, password);
+    let isValid = true;
+    if(isValid){
+        return true;
+    }else{
+        return false;
+    }
+}
+
+function validadorDeURLDeRedireccion(url) {
+    return url.startsWith('http://mi-sitio.com') || url.startsWith('https://mi-otro-sitio.com');
+
+}
+
+/**Clases utilitarias de la aplicacion */
+class ErrorPersonalizado extends Error{
+    constructor(message, statusCode) {
+        super(message);
+        this.statusCode = statusCode;
+        this.status = `${statusCode}`.startsWith('4') ? 'fallo' : 'error';
+        
+        Error.captureStackTrace(this, this.constructor);
+    }
+}
+
 /**
  * Inicializacion de middlewares de la aplicacion
  */
 app.use(bodyParser.json());
-app.use(express.static('public'));
+// app.use(express.static('public'));
 app.use(cors());
+app.use(helmet(
+    {
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "https://cdn.jsdelivr.net/npm/chart.js"],
+                styleSrc: ["'self'", 'bootstrapcdn.com']
+            }
+        },
+        frameguard: {
+            action: 'deny'
+        }
+    }
+));
 
 /***
  * Rutas del servidor
@@ -31,10 +87,32 @@ app.use(cors());
 
 //**Petciciones GET */
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    // res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    //Error intencional
+    throw new Error('error intencional');
 })
 app.get('/home', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'home.html'));
+})
+
+app.get('/fileNotFound', (req, res, next) => {
+    fs.readFile('./notFound.txt', (err, data) => {
+        if (err) {
+            next(err);
+        } else {
+            res.send(data);
+        }
+    })
+})
+
+app.get('/user/:id', async (req, res, next) => {
+    try {
+        const user = await getUserById(req.params.id);
+        res.send(user);
+    } catch (error) {
+        const myError = new ErrorPersonalizado('Este es un error personalizado', 502);
+        next(myError)
+    }
 })
 
 //Clase 1
@@ -66,6 +144,18 @@ app.get('/encadenado', [fun1, fun2], (req, res, next) => {
 //manejar peticiones post en el servidor
 //Analizando el 'body' de la request del cliente.
 app.post('/login', (req, res) => {
+    if (ValidarCredenciales(req.body.username, req.body.password)) {
+        const urlDeRedireccion = req.query.redirect || '/login';
+
+        //Verificar si la URL de redireccion es segura
+        if (validadorDeURLDeRedireccion(urlDeRedireccion)) {
+            res.redirect(urlDeRedireccion);
+        }else{
+            res.send(400).send('URL de redireccion no valido');
+        }
+    }else{
+        res.send('Credenciales invalidas');
+    }
     let body = '';
     req.on('data', (chunk) =>{
         body += chunk.toString();
@@ -121,6 +211,18 @@ app.delete('/eliminarProducto/:id', (req, res) => {
     //typeORM - mySQL
 
     res.status(200).send('Dato eliminado');
+})
+
+/**Middlewares del sistema */
+//Middleware para manejar errores
+app.use((err, req, res, next) => {
+    err.statusCode = err.statusCode || 500;
+    err.status = err.status || 'error';
+
+    res.status(err.statusCode).json({
+        status: err.status,
+        message: err.message
+    });     
 })
 
 

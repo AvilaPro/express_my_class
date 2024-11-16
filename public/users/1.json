@@ -1,0 +1,10 @@
+{
+    "name": "Juan",
+    "age": 30,
+    "occupation": "Desarrollador",
+    "address": {
+        "street": "Calle 123",
+        "city": "Ciudad",
+        "country": "Colombia"
+    }
+}
